@@ -1,1 +1,929 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Bestelformulier</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#faf7f2;color:#1a1410;min-height:100vh}
+.nav{display:flex;background:#1a1410;position:sticky;top:0;z-index:100}
+.nav-btn{flex:1;padding:13px 4px;background:none;border:none;border-bottom:3px solid transparent;color:#7a6a60;font-size:12px;font-weight:600;cursor:pointer}
+.nav-btn.active{color:#fff;border-bottom-color:#c4623a}
+.panel{display:none}.panel.active{display:block}
+.page-header{background:#1a1410;color:#fff;padding:22px 20px 18px;text-align:center}
+.week-badge{display:inline-block;background:#c4623a;color:#fff;font-size:11px;font-weight:700;letter-spacing:1px;padding:3px 12px;border-radius:20px;margin-bottom:10px}
+.page-header h1{font-family:Georgia,serif;font-size:24px;font-weight:700}
+.page-header p{color:#8a7a70;font-size:12px;margin-top:4px}
+.search-wrap{padding:10px 20px;background:#fff9f2;border-bottom:1px solid #e0d8cf;position:sticky;top:48px;z-index:50}
+.search-wrap input{width:100%;padding:10px 14px;border:1.5px solid #e0d8cf;border-radius:8px;font-size:14px;background:#fff;outline:none}
+.cat-filters{display:flex;gap:6px;padding:10px 20px;overflow-x:auto;background:#fff9f2;border-bottom:1px solid #e0d8cf;scrollbar-width:none}
+.cat-filters::-webkit-scrollbar{display:none}
+.cat-btn{white-space:nowrap;padding:5px 12px;border:1.5px solid #e0d8cf;border-radius:20px;background:#fff;color:#5a4f45;font-size:12px;font-weight:500;cursor:pointer}
+.cat-btn.active{background:#1a1410;border-color:#1a1410;color:#fff}
+.product-list{padding:12px 20px 130px}
+.cat-header{font-family:Georgia,serif;font-size:14px;font-weight:700;color:#5a4f45;padding:14px 0 8px;border-bottom:1px solid #e0d8cf;margin-bottom:8px}
+.product-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0e8e0}
+.product-info{flex:1;min-width:0}
+.product-name{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.product-meta{display:flex;gap:8px;margin-top:2px}
+.product-price{font-size:12px;font-weight:700;color:#c4623a}
+.product-art{font-size:11px;color:#9a8a80}
+.qty-ctrl{display:flex;align-items:center;flex-shrink:0}
+.qty-btn{width:34px;height:34px;border-radius:50%;border:1.5px solid #e0d8cf;background:#fff;font-size:22px;line-height:1;cursor:pointer;color:#5a4f45;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.qty-num{width:32px;text-align:center;font-size:14px;font-weight:700;color:#ccc}
+.qty-num.has-qty{color:#c4623a}
+.cart-float{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1410;color:#fff;padding:13px 24px;border-radius:30px;display:none;align-items:center;gap:12px;cursor:pointer;box-shadow:0 8px 30px rgba(26,20,16,.45);font-size:14px;font-weight:600;z-index:200;white-space:nowrap}
+.cart-float.show{display:flex}
+.cart-badge{background:#c4623a;border-radius:20px;padding:2px 10px;font-size:13px}
+.section{padding:20px}
+.field-label{font-size:10px;font-weight:700;letter-spacing:.8px;color:#5a4f45;text-transform:uppercase;display:block;margin-bottom:5px}
+input[type=text],input[type=tel],input[type=number],input[type=password],select,textarea{padding:10px 12px;border:1.5px solid #e0d8cf;border-radius:8px;font-size:14px;background:#fff9f2;outline:none;width:100%;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:#c4623a}
+.row2{display:flex;gap:10px}.row2>*{flex:1}
+.btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn-primary{background:#c4623a;color:#fff}
+.btn-primary:disabled{background:#ccc}
+.btn-secondary{background:none;color:#1a1410;border:1.5px solid #e0d8cf}
+.btn-green{background:#5e7a5a;color:#fff}
+.btn-dark{background:#1a1410;color:#fff}
+.btn-red{background:none;color:#c00;border:1.5px solid #f4a}
+.card{background:#fff;border-radius:12px;border:1px solid #e0d8cf;margin-bottom:12px;overflow:hidden}
+.card-header{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;background:#fff9f2;cursor:pointer}
+.card-body{padding:12px 16px;display:none}
+.card-body.open{display:block}
+.order-line{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px solid #f0e8e0}
+.order-line span:last-child{color:#c4623a;font-weight:600}
+.totaal-box{background:#fdf3dc;border-radius:10px;border:1px solid #e8d48a;padding:14px 16px;margin:14px 0}
+.totaal-big{display:flex;justify-content:space-between;font-size:17px;font-weight:700;margin-top:8px;padding-top:8px;border-top:1px solid #e8d48a}
+.warning{background:#fde;border:1px solid #f4a;border-radius:8px;padding:10px 14px;font-size:12px;color:#c00;margin-bottom:12px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.stat{background:#1a1410;border-radius:12px;padding:14px 16px}
+.stat .val{font-size:20px;font-weight:700;color:#e8826a}
+.stat .lbl{font-size:11px;color:#7a6a60;margin-top:2px}
+.inkoop{background:#fff;border-radius:12px;border:1px solid #e0d8cf;margin-bottom:16px;overflow:hidden}
+.inkoop-header{background:#fdf3dc;padding:12px 16px;border-bottom:1px solid #e8d48a;font-weight:600;font-size:13px}
+.inkoop-cat{background:#faf7f2;padding:7px 16px;font-size:11px;font-weight:700;letter-spacing:.5px;color:#5a4f45}
+.inkoop-row{display:flex;justify-content:space-between;padding:9px 16px;border-bottom:1px solid #f0e8e0;font-size:13px}
+.inkoop-row span:last-child{font-weight:700;color:#c4623a}
+.fac-grid{display:grid;grid-template-columns:1fr 85px 85px 65px;gap:6px;padding:10px 14px;align-items:center;font-size:12.5px;border-bottom:1px solid #f0e8e0}
+.fac-grid.hdr{background:#faf7f2;font-size:10px;font-weight:700;letter-spacing:.5px;color:#5a4f45;text-transform:uppercase}
+.fac-grid input{padding:5px 6px;font-size:12px;text-align:right}
+.fac-sub{font-weight:700;color:#c4623a;text-align:right}
+#printable{background:#fff;border:2px solid #1a1410;border-radius:12px;padding:20px;margin-bottom:14px}
+.fac-print-hdr{display:flex;justify-content:space-between;margin-bottom:16px}
+.fac-title{font-family:Georgia,serif;font-size:22px;font-weight:700}
+.fac-sub-title{font-size:11px;color:#5a4f45;margin-top:2px}
+.fac-klant{text-align:right;font-size:12px}
+.fac-klant strong{font-size:14px;display:block}
+table.fac-table{width:100%;border-collapse:collapse;font-size:12.5px}
+table.fac-table th{text-align:right;padding:5px 0;font-size:11px;letter-spacing:.5px;border-bottom:2px solid #1a1410}
+table.fac-table th:first-child{text-align:left}
+table.fac-table td{padding:7px 0;border-bottom:1px solid #e0d8cf;text-align:right}
+table.fac-table td:first-child{text-align:left}
+table.fac-table tfoot td{border-top:2px solid #1a1410;border-bottom:none;padding-top:10px;font-weight:700;font-size:14px}
+table.fac-table tfoot td:last-child{color:#c4623a}
+.upload-area{margin-top:8px;border-radius:12px;overflow:hidden;position:relative;background:#5e7a5a;min-height:52px}
+.upload-face{width:100%;padding:14px;background:transparent;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;text-align:center;display:block;pointer-events:none;font-family:inherit}
+.upload-area input[type=file]{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:100px;-webkit-tap-highlight-color:transparent}
+.format-badges{display:flex;gap:8px;margin-top:12px}
+.format-badge{flex:1;background:#faf7f2;border:1px solid #e0d8cf;border-radius:8px;padding:8px 10px;text-align:center;font-size:12px;font-weight:600}
+.format-badge small{display:block;font-size:10px;color:#8a7a70;margin-top:2px;font-weight:400}
+.status-msg{margin-top:12px;padding:10px 14px;border-radius:8px;font-size:13px;display:none}
+.status-ok{background:#eaf4ea;color:#2a6a2a;display:block}
+.status-err{background:#fde;color:#c00;display:block}
+.status-busy{background:#f5f0ea;color:#5a4f45;display:block}
+.info-box{background:#fdf3dc;border-radius:10px;border:1px solid #e8d48a;padding:14px;margin-top:14px;font-size:12px;color:#5a4f45;line-height:1.9}
+.info-box strong{font-size:12px;display:block;margin-bottom:6px}
+.nota{font-size:11px;color:#8a7a70;margin-top:8px;padding-top:8px;border-top:1px solid #e0d8cf}
+.sub-nav{display:flex;gap:6px;margin-bottom:20px}
+.sub-btn{flex:1;padding:9px 4px;border:1.5px solid #e0d8cf;border-radius:10px;background:#fff;color:#5a4f45;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent}
+.sub-btn.active{background:#1a1410;border-color:#1a1410;color:#fff}
+.bevestiging{text-align:center;padding:32px 20px}
+.empty{text-align:center;padding:48px 20px;color:#8a7a70}
+.empty .icon{font-size:48px;margin-bottom:12px}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1410;color:#fff;padding:10px 22px;border-radius:22px;font-size:13px;z-index:999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.3);opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.gesloten-banner{background:#c4623a;color:#fff;padding:20px;text-align:center;font-size:15px;font-weight:600;line-height:1.6}
+.gesloten-banner small{display:block;font-size:12px;font-weight:400;margin-top:4px;opacity:.85}
+.toggle-open{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#fff9f2;border-radius:10px;border:1px solid #e0d8cf;margin-bottom:12px}
+.toggle-label{font-size:13px;font-weight:600}
+.toggle-sub{font-size:11px;color:#8a7a70;margin-top:2px}
+.switch{position:relative;width:48px;height:26px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;border-radius:26px;transition:.3s}
+.slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+input:checked+.slider{background:#c4623a}
+input:checked+.slider:before{transform:translateX(22px)}
+.email-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;padding:20px}
+.email-modal.show{display:flex}
+.email-modal-box{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto}
+.email-modal-box h3{font-family:Georgia,serif;font-size:18px;margin-bottom:6px}
+.email-modal-box p{font-size:13px;color:#5a4f45;margin-bottom:16px;line-height:1.6}
+.email-tag{display:inline-flex;align-items:center;gap:6px;background:#f0e8e0;border-radius:20px;padding:5px 12px;font-size:13px;margin:3px}
+.email-tag button{background:none;border:none;cursor:pointer;color:#8a7a70;font-size:16px;line-height:1;padding:0}
+@media print{.nav,.page-header,.sub-nav,#admin-orders,#admin-upload,#fac-controls-top,.btn,.btn-secondary{display:none!important}#printable{display:block!important;border:none!important}body{background:#fff}}
+</style>
+</head>
+<body>
 
+<nav class="nav">
+  <button class="nav-btn active" onclick="showTab('bestel')">🛒 Bestellen</button>
+  <button class="nav-btn" onclick="showTab('mijnlijst')">📋 Mijn lijst</button>
+  <button class="nav-btn" onclick="showTab('admin')">🔐 Beheer</button>
+</nav>
+
+<!-- BESTELLEN -->
+<div id="tab-bestel" class="panel active">
+  <div class="page-header">
+    <div class="week-badge" id="week-badge">WEEK —</div>
+    <h1>Bestelformulier</h1>
+    <p>Bestellen vóór zondag · Afhalen dinsdag</p>
+  </div>
+  <div class="search-wrap">
+    <input type="search" id="zoek" placeholder="🔍 Zoek product…" oninput="renderProducts()">
+  </div>
+  <div class="cat-filters">
+    <button class="cat-btn active" onclick="setCat('ALLE',this)">Alle</button>
+    <button class="cat-btn" onclick="setCat('VIS',this)">🐟 Vis</button>
+    <button class="cat-btn" onclick="setCat('VLEES',this)">🥩 Vlees</button>
+    <button class="cat-btn" onclick="setCat('BROOD',this)">🍞 Brood</button>
+    <button class="cat-btn" onclick="setCat('DIVERSEN',this)">🧀 Diversen</button>
+    <button class="cat-btn" onclick="setCat('AGF',this)">🥦 AGF</button>
+  </div>
+  <div id="gesloten-banner" style="display:none" class="gesloten-banner">
+    🔒 Bestellen is gesloten<small>De beheerder heeft de bestelperiode afgesloten. Volgende week kun je weer bestellen.</small>
+  </div>
+  <div id="no-products" class="empty" style="display:none"><div class="icon">📦</div><div>De beheerder uploadt binnenkort de producten.</div></div>
+  <div class="product-list" id="product-list"></div>
+  <div class="cart-float" id="cart-float" onclick="showTab('mijnlijst')">
+    <span>Bekijk bestelling</span>
+    <span class="cart-badge" id="cart-badge">0</span>
+    <span id="cart-total-float">€ 0,00</span>
+  </div>
+</div>
+
+<!-- MIJN LIJST -->
+<div id="tab-mijnlijst" class="panel">
+  <div class="section" id="mijnlijst-content"></div>
+</div>
+
+<!-- ADMIN -->
+<div id="tab-admin" class="panel">
+  <div id="admin-login" class="section" style="max-width:300px;margin:60px auto">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:40px;margin-bottom:8px">🔐</div>
+      <div style="font-family:Georgia,serif;font-size:22px;margin-bottom:4px">Beheer</div>
+      <div style="font-size:13px;color:#8a7a70">Alleen voor de beheerder</div>
+    </div>
+    <label class="field-label">Wachtwoord</label>
+    <input type="password" id="pw-input" placeholder="Wachtwoord" onkeydown="if(event.key==='Enter')adminLogin()">
+    <button class="btn btn-primary" onclick="adminLogin()" style="margin-top:12px">Inloggen</button>
+  </div>
+  <div id="admin-panel" style="display:none">
+    <div class="section" style="padding-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-family:Georgia,serif;font-size:20px">Beheer</div>
+        <button onclick="adminLogout()" style="background:none;border:1px solid #e0d8cf;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;color:#5a4f45;font-family:inherit">Uitloggen</button>
+      </div>
+      <div class="sub-nav">
+        <button class="sub-btn active" onclick="showAdminView('orders',this)">📦 Bestellingen</button>
+        <button class="sub-btn" onclick="showAdminView('factuur',this)">🧾 Factuur</button>
+        <button class="sub-btn" onclick="showAdminView('upload',this)">📂 Prijslijst</button>
+      </div>
+    </div>
+    <div id="admin-orders" class="section" style="padding-top:0">
+      <!-- Bestelperiode toggle -->
+      <div class="toggle-open">
+        <div>
+          <div class="toggle-label" id="toggle-label">Bestellen open</div>
+          <div class="toggle-sub" id="toggle-sub">Klanten kunnen nu bestellen</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="open-toggle" checked onchange="toggleBestelperiode()">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+    <div id="admin-factuur" class="section" style="display:none;padding-top:0">
+      <label class="field-label">Selecteer klant</label>
+      <select id="fac-klant" onchange="loadFactuur()" style="margin-bottom:14px"><option value="">— Kies een klant —</option></select>
+      <div id="fac-controls" style="display:none">
+        <div id="fac-controls-top">
+          <div class="card" style="border-radius:12px;overflow:hidden;margin-bottom:14px">
+            <div class="fac-grid hdr"><span>Product</span><span style="text-align:right">Prijs (€)</span><span style="text-align:right">Qty/Gewicht</span><span style="text-align:right">Totaal</span></div>
+            <div id="fac-lines"></div>
+          </div>
+          <div class="totaal-box">
+            <div class="totaal-big"><span>Totaal te betalen</span><span id="fac-totaal" style="color:#c4623a">€ 0,00</span></div>
+          </div>
+        </div>
+        <div id="printable">
+          <div class="fac-print-hdr">
+            <div><div class="fac-title">FACTUUR</div><div class="fac-sub-title" id="fac-datum"></div></div>
+            <div class="fac-klant"><strong id="fac-naam-print"></strong><span id="fac-tel-print"></span></div>
+          </div>
+          <table class="fac-table">
+            <thead><tr><th>Product</th><th>Qty</th><th>Prijs</th><th>Totaal</th></tr></thead>
+            <tbody id="fac-print-rows"></tbody>
+            <tfoot><tr><td colspan="3">Totaal te betalen</td><td id="fac-print-totaal"></td></tr></tfoot>
+          </table>
+          <div id="fac-notitie-print" class="nota"></div>
+          <div class="nota">Betalen via Tikkie zo snel mogelijk. Ophalen dinsdag. Gewichten zijn definitief zoals vermeld op leveranciersfactuur.</div>
+        </div>
+        <button class="btn btn-dark" onclick="window.print()">🖨 Afdrukken / PDF opslaan</button>
+      </div>
+    </div>
+    <div id="admin-upload" class="section" style="display:none;padding-top:0">
+      <div class="card" style="padding:20px;border-radius:12px;border:1px solid #e0d8cf">
+        <div style="font-weight:600;font-size:14px;margin-bottom:14px">📂 Nieuwe prijslijst uploaden</div>
+        <label class="field-label">Week-label (optioneel)</label>
+        <input type="text" id="week-input" placeholder="bijv. Week 17" style="margin-bottom:14px">
+        <div class="upload-area">
+          <div class="upload-face" id="upload-face">📤 Kies Word (.docx) of Excel (.xlsx)</div>
+          <input type="file" accept=".docx,.doc,.xlsx,.xls" onchange="handleUpload(this)">
+        </div>
+        <div class="format-badges">
+          <div class="format-badge">📄 .docx<small>Word — van je zusje</small></div>
+          <div class="format-badge">📊 .xlsx<small>Excel — ook ondersteund</small></div>
+        </div>
+        <div id="upload-status" class="status-msg"></div>
+      </div>
+      <div id="current-products-info" style="display:none;background:#faf7f2;border-radius:10px;border:1px solid #e0d8cf;padding:14px;margin-top:12px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">Actieve prijslijst: <span id="active-label" style="color:#c4623a"></span></div>
+        <div style="font-size:12px;color:#5a4f45;margin-bottom:4px" id="active-count"></div>
+        <div style="font-size:11px;color:#9a8a70" id="active-cats"></div>
+      </div>
+      <div class="info-box">
+        <strong>📋 Werkwijze elke week</strong>
+        1. Je zusje stuurt de offerte als <b>.docx</b><br>
+        2. Upload het hier (of je zusje doet het zelf met het wachtwoord)<br>
+        3. Klanten zien direct de nieuwe producten<br>
+        4. Bestellingen van die week blijven bewaard
+      </div>
+
+      <!-- E-mail instellingen -->
+      <div class="card" style="padding:20px;border-radius:12px;border:1px solid #e0d8cf;margin-top:14px">
+        <div style="font-weight:600;font-size:14px;margin-bottom:6px">📧 E-mailadressen voor bestellingen</div>
+        <div style="font-size:12px;color:#5a4f45;margin-bottom:12px">Bestellingen van klanten worden naar deze adressen gestuurd.</div>
+        <div id="admin-email-tags" style="margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px">
+          <input type="email" id="admin-email-input" placeholder="naam@email.com" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addAdminEmail()}">
+          <button class="btn btn-primary" style="width:auto;padding:10px 16px;margin-top:0;flex-shrink:0" onclick="addAdminEmail()">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- EMAIL MODAL -->
+<div class="email-modal" id="email-modal">
+  <div class="email-modal-box">
+    <h3>📧 Bestellingen verzenden</h3>
+    <p>Voer de e-mailadressen in waarnaar de bestellingen gestuurd worden. De volledige bestellingenlijst wordt als één overzichtelijke mail verzonden.</p>
+    <label class="field-label">E-mailadressen</label>
+    <div id="email-tags"></div>
+    <div class="email-input-row">
+      <input type="email" id="email-input" placeholder="naam@email.com" onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();addEmail()}">
+      <button class="btn btn-primary" style="width:auto;padding:10px 16px;margin-top:0;flex-shrink:0" onclick="addEmail()">+</button>
+    </div>
+    <div id="email-modal-status" class="status-msg" style="margin-top:12px"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" onclick="verstuurEnSluit()" id="send-close-btn">📨 Verzenden &amp; afsluiten</button>
+      <button class="btn btn-secondary" style="margin-top:0" onclick="sluitZonderMail()">Afsluiten zonder mail</button>
+    </div>
+    <button onclick="document.getElementById('email-modal').classList.remove('show')" style="width:100%;background:none;border:none;color:#8a7a70;font-size:13px;margin-top:12px;cursor:pointer;font-family:inherit;padding:4px">Annuleren</button>
+  </div>
+</div>
+
+<script>
+const ADMIN_PW="VleesenVis26@",MIN_ORDER=20;
+const CAT_EMOJI={VIS:"🐟",VLEES:"🥩",BROOD:"🍞",DIVERSEN:"🧀",AGF:"🥦"};
+const CAT_NL={VIS:"Vis",VLEES:"Vlees",BROOD:"Brood",DIVERSEN:"Diversen",AGF:"Groente & Fruit"};
+const CAT_ORDER=["VIS","VLEES","BROOD","DIVERSEN","AGF"];
+
+// EmailJS — gratis account nodig op emailjs.com
+// Vul hieronder je eigen Public Key, Service ID en Template ID in
+const EJS_PUBLIC_KEY  = "JOUW_PUBLIC_KEY";   // bijv. "user_xxxxxxxxxxx"
+const EJS_SERVICE_ID  = "JOUW_SERVICE_ID";   // bijv. "service_xxxxxxx"
+const EJS_TEMPLATE_ID = "JOUW_TEMPLATE_ID";  // bijv. "template_xxxxxxx"
+
+let products=[],weekLabel="",cart={},orders=[],activeCat="ALLE",facData={};
+let bestelGesloten=false;
+let emailAdressen=load("email_adressen",[]);
+
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+
+function init(){
+  const p=load("products_current",null);
+  if(p){products=p.products||[];weekLabel=p.weekLabel||"";}
+  orders=load("orders_current",[]);
+  bestelGesloten=load("bestel_gesloten",false);
+  emailAdressen=load("email_adressen",[]);
+  renderBadge();renderProducts();updateProductsInfo();
+  updateGeslotenUI();
+}
+
+function showTab(id){
+  document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("tab-"+id).classList.add("active");
+  ["bestel","mijnlijst","admin"].forEach((t,i)=>{if(t===id)document.querySelectorAll(".nav-btn")[i].classList.add("active");});
+  if(id==="mijnlijst")renderCart();
+  if(id==="admin"&&document.getElementById("admin-panel").style.display!=="none")renderAdminOrders();
+}
+
+function showAdminView(view,btn){
+  ["orders","factuur","upload"].forEach(v=>document.getElementById("admin-"+v).style.display=v===view?"block":"none");
+  document.querySelectorAll(".sub-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  if(view==="orders")renderAdminOrders();
+  if(view==="factuur")renderFactuurKlanten();
+  if(view==="upload"){updateProductsInfo();renderAdminEmailTags();}
+}
+
+function renderBadge(){const el=document.getElementById("week-badge");if(el)el.textContent=weekLabel||"ACTUELE WEEK";}
+
+function setCat(cat,btn){
+  activeCat=cat;
+  document.querySelectorAll(".cat-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  renderProducts();
+}
+
+function renderProducts(){
+  const list=document.getElementById("product-list");
+  const noP=document.getElementById("no-products");
+  const banner=document.getElementById("gesloten-banner");
+  const zoek=document.getElementById("zoek").value.toLowerCase();
+
+  if(bestelGesloten){
+    banner.style.display="block";
+    list.style.display="none";noP.style.display="none";
+    document.getElementById("cart-float").classList.remove("show");
+    return;
+  }
+  banner.style.display="none";
+
+  if(!products.length){list.style.display="none";noP.style.display="block";return;}
+  list.style.display="block";noP.style.display="none";
+  const filtered=products.filter(p=>(activeCat==="ALLE"||p.categorie===activeCat)&&(!zoek||p.omschrijving.toLowerCase().includes(zoek)||String(p.artikel).includes(zoek)));
+  let html="";
+  CAT_ORDER.forEach(cat=>{
+    const items=filtered.filter(p=>p.categorie===cat);
+    if(!items.length)return;
+    if(activeCat==="ALLE"||zoek)html+=`<div class="cat-header">${CAT_EMOJI[cat]} ${CAT_NL[cat]}</div>`;
+    items.forEach(p=>{
+      const qty=cart[p.artikel]||0;
+      html+=`<div class="product-row">
+        <div class="product-info">
+          <div class="product-name">${esc(p.omschrijving)}</div>
+          <div class="product-meta"><span class="product-price">${fmt(p.prijs)}</span><span class="product-art">#${p.artikel}</span></div>
+        </div>
+        <div class="qty-ctrl">
+          <button class="qty-btn" onclick="changeQty(${p.artikel},-1)">−</button>
+          <span class="qty-num${qty>0?" has-qty":""}" id="qty-${p.artikel}">${qty||""}</span>
+          <button class="qty-btn" onclick="changeQty(${p.artikel},1)">+</button>
+        </div>
+      </div>`;
+    });
+  });
+  if(!html)html=`<div class="empty"><div class="icon">🔍</div><div>Geen producten gevonden</div></div>`;
+  list.innerHTML=html;
+  updateCartFloat();
+}
+
+function changeQty(art,delta){
+  const next=Math.max(0,(cart[art]||0)+delta);
+  if(next===0)delete cart[art];else cart[art]=next;
+  const el=document.getElementById("qty-"+art);
+  if(el){el.textContent=next||"";el.className="qty-num"+(next>0?" has-qty":"");}
+  updateCartFloat();
+}
+
+function updateCartFloat(){
+  const total=cartTotal(),count=Object.values(cart).reduce((s,v)=>s+v,0);
+  document.getElementById("cart-badge").textContent=count;
+  document.getElementById("cart-total-float").textContent=fmt(total);
+  document.getElementById("cart-float").classList.toggle("show",count>0);
+}
+
+function cartTotal(){return Object.entries(cart).reduce((s,[art,qty])=>{const p=products.find(x=>x.artikel==art);return s+(p?p.prijs*qty:0);},0);}
+function cartItems(){return Object.entries(cart).map(([art,qty])=>{const p=products.find(x=>x.artikel==art);return p?{...p,qty}:null;}).filter(Boolean);}
+
+function renderCart(){
+  const el=document.getElementById("mijnlijst-content");
+  const items=cartItems(),total=cartTotal();
+  if(!items.length){
+    el.innerHTML=`<div class="empty"><div class="icon">🛒</div><div>Je mandje is leeg.</div><button class="btn btn-primary" style="max-width:200px;margin:16px auto 0;display:block" onclick="showTab('bestel')">← Ga naar producten</button></div>`;
+    return;
+  }
+  const rows=items.map(i=>`<div class="order-line" style="align-items:center;display:flex;gap:4px">
+    <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:500">${esc(i.omschrijving)}</span>
+    <span style="font-size:12px;color:#8a7a70;flex-shrink:0;margin:0 4px">${i.qty}×</span>
+    <span style="flex-shrink:0">${fmt(i.prijs*i.qty)}</span>
+    <button onclick="removeFromCart(${i.artikel})" style="width:28px;height:28px;border-radius:50%;border:1.5px solid #e0d8cf;background:none;cursor:pointer;color:#8a7a70;font-size:16px;margin-left:6px;flex-shrink:0;font-family:inherit;-webkit-tap-highlight-color:transparent">×</button>
+  </div>`).join("");
+  const underMin=total<MIN_ORDER;
+  el.innerHTML=`
+    <div style="font-family:Georgia,serif;font-size:20px;margin-bottom:16px">Mijn bestelling</div>
+    <div style="background:#fff9f2;border-radius:10px;border:1px solid #e0d8cf;padding:14px;margin-bottom:16px">
+      <label class="field-label">Jouw gegevens</label>
+      <div class="row2"><div><input type="text" id="kl-naam" placeholder="Naam" value="${esc(sessionStorage.getItem('naam')||'')}"></div><div><input type="tel" id="kl-tel" placeholder="06-…" value="${esc(sessionStorage.getItem('tel')||'')}"></div></div>
+    </div>
+    <div class="card"><div style="padding:12px 16px">${rows}</div></div>
+    <div class="totaal-box">
+      <div style="font-size:11px;color:#8a7a70;margin-bottom:6px">* Exact bedrag volgt na weging door leverancier</div>
+      <div class="totaal-big"><span>Geschat totaal</span><span style="color:#c4623a">${fmt(total)}</span></div>
+    </div>
+    ${underMin?`<div class="warning">⚠️ Minimum bestelling is ${fmt(MIN_ORDER)}</div>`:""}
+    <label class="field-label">Opmerkingen (optioneel)</label>
+    <textarea id="kl-notitie" placeholder="Bijv. allergieën…" style="height:64px;resize:none;margin-bottom:0">${esc(sessionStorage.getItem('notitie')||'')}</textarea>
+    <button class="btn btn-primary" ${underMin?"disabled":""} onclick="plaatsOrder()">✓ Bestelling plaatsen</button>
+    <button class="btn btn-secondary" onclick="showTab('bestel')">← Verder winkelen</button>`;
+}
+
+function removeFromCart(art){
+  delete cart[art];
+  const el=document.getElementById("qty-"+art);
+  if(el){el.textContent="";el.className="qty-num";}
+  updateCartFloat();renderCart();
+}
+
+function plaatsOrder(){
+  if(bestelGesloten){showToast("Bestellen is gesloten");return;}
+  const naam=document.getElementById("kl-naam").value.trim();
+  const tel=document.getElementById("kl-tel").value.trim();
+  const notitie=document.getElementById("kl-notitie").value.trim();
+  if(!naam||!tel){showToast("Vul naam en telefoon in");return;}
+  const items=cartItems(),total=cartTotal();
+  if(total<MIN_ORDER)return;
+  sessionStorage.setItem("naam",naam);sessionStorage.setItem("tel",tel);
+  const order={id:Date.now(),naam,tel,notitie,items:items.map(i=>({artikel:i.artikel,omschrijving:i.omschrijving,prijs:i.prijs,qty:i.qty,categorie:i.categorie})),totaal:total,datum:new Date().toLocaleDateString("nl-NL"),tijd:new Date().toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"})};
+  orders.push(order);save("orders_current",orders);cart={};updateCartFloat();
+
+  // Build mailto link
+  const onderwerp=encodeURIComponent(`Bestelling ${weekLabel} — ${naam}`);
+  const regels=order.items.map(i=>`${i.artikel} | ${i.omschrijving} | ${i.qty}x`).join("\n");
+  let mailBody=`Bestelling ontvangen op ${order.datum} om ${order.tijd}\n\nNaam: ${naam}\nTelefoon: ${tel}\n\nProducten:\n${regels}`;
+  if(notitie)mailBody+=`\n\nOpmerking: ${notitie}`;
+  mailBody+=`\n\n* Prijzen kunnen afwijken op basis van werkelijk gewicht.`;
+  const mailTo=emailAdressen.length?emailAdressen.join(","):"";
+  const mailLink=`mailto:${mailTo}?subject=${onderwerp}&body=${encodeURIComponent(mailBody)}`;
+
+  const itemRows=order.items.map(i=>`
+    <div class="order-line"><span>${i.artikel} | ${esc(i.omschrijving)}</span><span>${i.qty}×</span></div>`).join("");
+
+  document.getElementById("mijnlijst-content").innerHTML=`
+    <div class="bevestiging">
+      <div style="font-size:56px;margin-bottom:16px">✅</div>
+      <div style="font-family:Georgia,serif;font-size:22px;margin-bottom:8px">Bestelling geplaatst!</div>
+      <p style="color:#5a4f45;font-size:13px;line-height:1.7;margin-bottom:20px">Bedankt ${esc(naam)}!<br>Ophalen op <strong>dinsdag</strong>.<br>Betaal via Tikkie na ontvangst van de factuur.</p>
+      <div class="card" style="text-align:left;padding:16px;border-radius:12px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:10px">Jouw bestelling</div>
+        ${itemRows}
+        <div style="font-size:11px;color:#8a7a70;margin-top:10px;padding-top:8px;border-top:1px solid #e0d8cf">* Prijzen kunnen afwijken op basis van werkelijk gewicht.</div>
+      </div>
+      <a href="${mailLink}" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#c4623a;color:#fff;padding:13px;border-radius:12px;text-decoration:none;font-weight:600;font-size:14px;margin-top:12px;margin-bottom:4px">📧 Bestelling versturen</a>
+      <button class="btn btn-secondary" onclick="nieuweOrder()">Nieuwe bestelling</button>
+    </div>`;
+}
+
+function nieuweOrder(){
+  cart={};updateCartFloat();
+  document.getElementById("zoek").value="";activeCat="ALLE";
+  document.querySelectorAll(".cat-btn").forEach((b,i)=>b.classList.toggle("active",i===0));
+  renderProducts();showTab("bestel");
+}
+
+function adminLogin(){
+  if(document.getElementById("pw-input").value===ADMIN_PW){
+    document.getElementById("admin-login").style.display="none";
+    document.getElementById("admin-panel").style.display="block";
+    document.getElementById("pw-input").value="";
+    renderAdminOrders();
+  }else showToast("Onjuist wachtwoord");
+}
+function adminLogout(){
+  document.getElementById("admin-login").style.display="block";
+  document.getElementById("admin-panel").style.display="none";
+}
+
+function renderAdminOrders(){
+  const el=document.getElementById("admin-orders");
+  const agg=buildAgg();
+  // Update toggle state
+  updateToggleUI();
+
+  let html=`<div class="stats">
+    <div class="stat"><div class="val">${orders.length}</div><div class="lbl">Bestellingen</div></div>
+    <div class="stat"><div class="val">${fmt(orders.reduce((s,o)=>s+o.totaal,0))}</div><div class="lbl">Geschatte omzet</div></div>
+    <div class="stat"><div class="val">${Object.keys(agg).length}</div><div class="lbl">Unieke artikelen</div></div>
+    <div class="stat"><div class="val">${Object.values(agg).reduce((s,x)=>s+x.qty,0)}</div><div class="lbl">Totaal stuks</div></div>
+  </div>`;
+  if(orders.length){
+    html+=`<div class="inkoop"><div class="inkoop-header">📦 Inkooplijst voor je zusje</div>`;
+    CAT_ORDER.filter(c=>Object.values(agg).some(x=>x.cat===c)).forEach(cat=>{
+      html+=`<div class="inkoop-cat">${CAT_EMOJI[cat]} ${CAT_NL[cat].toUpperCase()}</div>`;
+      Object.entries(agg).filter(([,x])=>x.cat===cat).sort((a,b)=>b[1].qty-a[1].qty).forEach(([,x])=>{
+        html+=`<div class="inkoop-row"><span>${esc(x.naam)}</span><span>${x.qty}×</span></div>`;
+      });
+    });
+    html+=`</div>`;
+  }
+  if(!orders.length){
+    html+=`<div class="empty"><div class="icon">📭</div><div>Nog geen bestellingen.</div></div>`;
+  }else{
+    html+=`<div style="font-family:Georgia,serif;font-size:16px;margin-bottom:10px">Per klant</div>`;
+    orders.forEach((o,idx)=>{
+      html+=`<div class="card">
+        <div class="card-header" onclick="toggleCard(${idx})">
+          <div><div style="font-weight:600;font-size:14px">${esc(o.naam)}</div><div style="font-size:11px;color:#8a7a70;margin-top:2px">📞 ${esc(o.tel)} · ${o.datum} ${o.tijd}</div></div>
+          <div style="font-weight:700;color:#c4623a">${fmt(o.totaal)}</div>
+        </div>
+        <div class="card-body" id="card-${idx}">
+          ${o.items.map(i=>`<div class="order-line"><span>${i.qty}× ${esc(i.omschrijving)}</span><span>${fmt(i.prijs*i.qty)}</span></div>`).join("")}
+          ${o.notitie?`<div class="nota">📝 ${esc(o.notitie)}</div>`:""}
+          <button class="btn btn-primary" style="margin-top:12px;padding:9px;font-size:13px" onclick="goFactuur(${idx})">Factuur maken →</button>
+        </div>
+      </div>`;
+    });
+    html+=`<div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-green" style="flex:1;padding:12px;font-size:13px;margin-top:0" onclick="exportCSV()">📥 CSV exporteren</button>
+      <button class="btn btn-red" style="flex:1;padding:12px;font-size:13px;margin-top:0" onclick="clearOrders()">🗑 Wissen</button>
+    </div>`;
+  }
+  // Append stats + inkoop + klanten below the toggle
+  const contentEl=document.getElementById("admin-orders-content");
+  if(!contentEl){
+    const div=document.createElement("div");
+    div.id="admin-orders-content";
+    el.appendChild(div);
+  }
+  document.getElementById("admin-orders-content").innerHTML=html;
+}
+
+function toggleCard(idx){const el=document.getElementById("card-"+idx);if(el)el.classList.toggle("open");}
+function goFactuur(idx){const o=orders[idx];showAdminView("factuur",document.querySelectorAll(".sub-btn")[1]);setTimeout(()=>{document.getElementById("fac-klant").value=o.id;loadFactuur();},50);}
+function buildAgg(){const a={};orders.forEach(o=>o.items.forEach(i=>{if(!a[i.artikel])a[i.artikel]={naam:i.omschrijving,qty:0,cat:i.categorie};a[i.artikel].qty+=i.qty;}));return a;}
+function exportCSV(){let c="Naam,Telefoon,Datum,Artikel,Omschrijving,Qty,Prijs,Subtotaal\n";orders.forEach(o=>o.items.forEach(i=>{c+=`"${o.naam}","${o.tel}","${o.datum} ${o.tijd}","${i.artikel}","${i.omschrijving}",${i.qty},${i.prijs.toFixed(2)},${(i.prijs*i.qty).toFixed(2)}\n`;}));const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([c],{type:"text/csv"}));a.download=`bestellingen_${weekLabel||"week"}.csv`;a.click();}
+function clearOrders(){if(confirm("Alle bestellingen wissen?")){orders=[];save("orders_current",orders);renderAdminOrders();showToast("Bestellingen gewist");}}
+
+// ── BESTELPERIODE ──────────────────────────────────────────────
+function toggleBestelperiode(){
+  const isOpen=document.getElementById("open-toggle").checked;
+  if(!isOpen){
+    // Going to close — show email modal first
+    openEmailModal();
+  } else {
+    // Reopening
+    bestelGesloten=false;
+    save("bestel_gesloten",false);
+    updateGeslotenUI();
+    updateToggleUI();
+    renderProducts();
+    showToast("✓ Bestellen weer open");
+  }
+}
+
+function updateToggleUI(){
+  const toggle=document.getElementById("open-toggle");
+  const label=document.getElementById("toggle-label");
+  const sub=document.getElementById("toggle-sub");
+  if(!toggle)return;
+  toggle.checked=!bestelGesloten;
+  if(bestelGesloten){
+    label.textContent="Bestellen gesloten";label.style.color="#c4623a";
+    sub.textContent="Klanten kunnen niet meer bestellen";
+  } else {
+    label.textContent="Bestellen open";label.style.color="#1a1410";
+    sub.textContent="Klanten kunnen nu bestellen";
+  }
+}
+
+function updateGeslotenUI(){
+  renderProducts();
+  updateToggleUI();
+}
+
+// ── EMAIL MODAL ────────────────────────────────────────────────
+function openEmailModal(){
+  renderEmailTags();
+  document.getElementById("email-modal-status").className="status-msg";
+  document.getElementById("email-modal-status").textContent="";
+  document.getElementById("email-modal").classList.add("show");
+}
+
+function renderEmailTags(){
+  document.getElementById("email-tags").innerHTML=emailAdressen.map((e,i)=>
+    `<span class="email-tag">${esc(e)}<button onclick="removeEmail(${i})">×</button></span>`
+  ).join("");
+}
+
+function addAdminEmail(){
+  const input=document.getElementById("admin-email-input");
+  const val=input.value.trim().toLowerCase();
+  if(!val)return;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)){showToast("Ongeldig e-mailadres");return;}
+  if(emailAdressen.includes(val)){showToast("Al toegevoegd");input.value="";return;}
+  emailAdressen.push(val);
+  save("email_adressen",emailAdressen);
+  input.value="";
+  renderAdminEmailTags();
+  showToast("✓ E-mailadres toegevoegd");
+}
+
+function renderAdminEmailTags(){
+  const el=document.getElementById("admin-email-tags");
+  if(!el)return;
+  if(!emailAdressen.length){el.innerHTML=`<div style="font-size:12px;color:#9a8a70;font-style:italic">Nog geen adressen toegevoegd</div>`;return;}
+  el.innerHTML=emailAdressen.map((e,i)=>
+    `<span class="email-tag">${esc(e)}<button onclick="removeAdminEmail(${i})">×</button></span>`
+  ).join("");
+}
+
+function removeAdminEmail(i){
+  emailAdressen.splice(i,1);
+  save("email_adressen",emailAdressen);
+  renderAdminEmailTags();
+}
+
+function addEmail(){
+  const input=document.getElementById("email-input");
+  const val=input.value.trim().toLowerCase();
+  if(!val)return;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)){showToast("Ongeldig e-mailadres");return;}
+  if(emailAdressen.includes(val)){showToast("Al toegevoegd");input.value="";return;}
+  emailAdressen.push(val);
+  save("email_adressen",emailAdressen);
+  input.value="";
+  renderEmailTags();
+}
+
+function removeEmail(i){
+  emailAdressen.splice(i,1);
+  save("email_adressen",emailAdressen);
+  renderEmailTags();
+}
+
+async function verstuurEnSluit(){
+  if(!emailAdressen.length){showToast("Voeg eerst een e-mailadres toe");return;}
+  const btn=document.getElementById("send-close-btn");
+  const statusEl=document.getElementById("email-modal-status");
+  btn.disabled=true;btn.textContent="⏳ Verzenden…";
+  statusEl.className="status-msg status-busy";statusEl.textContent="Bezig met verzenden…";
+
+  // Build email body
+  const agg=buildAgg();
+  let tekst=`Bestellingenoverzicht ${weekLabel}\n`;
+  tekst+=`Datum: ${new Date().toLocaleDateString("nl-NL")}\n`;
+  tekst+=`Aantal bestellingen: ${orders.length}\n\n`;
+  tekst+=`=== INKOOPLIJST ===\n`;
+  CAT_ORDER.forEach(cat=>{
+    const items=Object.entries(agg).filter(([,x])=>x.cat===cat);
+    if(!items.length)return;
+    tekst+=`\n${CAT_EMOJI[cat]} ${CAT_NL[cat].toUpperCase()}\n`;
+    items.sort((a,b)=>b[1].qty-a[1].qty).forEach(([,x])=>{tekst+=`  ${x.naam}: ${x.qty}×\n`;});
+  });
+  tekst+=`\n=== PER KLANT ===\n`;
+  orders.forEach(o=>{
+    tekst+=`\n${o.naam} (${o.tel}) — ${fmt(o.totaal)}\n`;
+    o.items.forEach(i=>{tekst+=`  ${i.qty}× ${i.omschrijving} = ${fmt(i.prijs*i.qty)}\n`;});
+    if(o.notitie)tekst+=`  Opmerking: ${o.notitie}\n`;
+  });
+
+  try {
+    // Send to each email address
+    if(EJS_PUBLIC_KEY==="JOUW_PUBLIC_KEY"){
+      // EmailJS not configured — open mailto fallback
+      const subject=encodeURIComponent(`Bestellingen ${weekLabel}`);
+      const body=encodeURIComponent(tekst);
+      window.open(`mailto:${emailAdressen.join(",")}?subject=${subject}&body=${body}`);
+      doSluit();
+      document.getElementById("email-modal").classList.remove("show");
+      showToast("Mail-app geopend");
+      return;
+    }
+    emailjs.init(EJS_PUBLIC_KEY);
+    await emailjs.send(EJS_SERVICE_ID, EJS_TEMPLATE_ID, {
+      to_email: emailAdressen.join(","),
+      subject: `Bestellingen ${weekLabel}`,
+      message: tekst,
+      week: weekLabel,
+      aantal: orders.length,
+      omzet: fmt(orders.reduce((s,o)=>s+o.totaal,0))
+    });
+    statusEl.className="status-msg status-ok";statusEl.textContent="✓ Mail verstuurd!";
+    setTimeout(()=>{doSluit();document.getElementById("email-modal").classList.remove("show");showToast("✓ Mail verstuurd & bestellen gesloten");},1500);
+  } catch(err){
+    statusEl.className="status-msg status-err";statusEl.textContent="❌ Versturen mislukt: "+((err&&err.text)||err);
+    btn.disabled=false;btn.textContent="📨 Verzenden & afsluiten";
+  }
+}
+
+function sluitZonderMail(){
+  doSluit();
+  document.getElementById("email-modal").classList.remove("show");
+  showToast("Bestellen gesloten");
+}
+
+function doSluit(){
+  bestelGesloten=true;
+  save("bestel_gesloten",true);
+  updateGeslotenUI();
+  renderAdminOrders();
+}
+
+function renderFactuurKlanten(){const sel=document.getElementById("fac-klant");const cur=sel.value;sel.innerHTML=`<option value="">— Kies een klant —</option>`;orders.forEach(o=>{sel.innerHTML+=`<option value="${o.id}">${esc(o.naam)} (${esc(o.tel)}) — ${fmt(o.totaal)}</option>`;});if(cur)sel.value=cur;}
+
+function loadFactuur(){
+  const id=document.getElementById("fac-klant").value;
+  const ctrl=document.getElementById("fac-controls");
+  if(!id){ctrl.style.display="none";return;}
+  const order=orders.find(o=>o.id==id);if(!order)return;
+  ctrl.style.display="block";
+  facData={};
+  order.items.forEach((item,i)=>{facData[i]={prijs:item.prijs.toFixed(2),qty:String(item.qty)};});
+  renderFacLines(order);updateFacTotaal(order);
+  document.getElementById("fac-naam-print").textContent=order.naam;
+  document.getElementById("fac-tel-print").textContent=order.tel;
+  document.getElementById("fac-datum").textContent=`${weekLabel} · ${new Date().toLocaleDateString("nl-NL",{day:"numeric",month:"long",year:"numeric"})}`;
+  document.getElementById("fac-notitie-print").textContent=order.notitie?"📝 "+order.notitie:"";
+  renderPrintRows(order);
+}
+
+function renderFacLines(order){
+  document.getElementById("fac-lines").innerHTML=order.items.map((item,i)=>`
+    <div class="fac-grid">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="${esc(item.omschrijving)}">${esc(item.omschrijving)}</span>
+      <input type="number" value="${facData[i].prijs}" step="0.01" oninput="facChange(${i},'prijs',this.value)">
+      <input type="number" value="${facData[i].qty}" step="0.001" oninput="facChange(${i},'qty',this.value)">
+      <span class="fac-sub" id="fac-sub-${i}">${fmt(parseFloat(facData[i].prijs)*parseFloat(facData[i].qty))}</span>
+    </div>`).join("");
+}
+
+function facChange(i,field,val){
+  facData[i][field]=val;
+  const p=parseFloat(facData[i].prijs)||0,q=parseFloat(facData[i].qty)||0;
+  const sub=document.getElementById("fac-sub-"+i);if(sub)sub.textContent=fmt(p*q);
+  const id=document.getElementById("fac-klant").value;
+  const order=orders.find(o=>o.id==id);
+  if(order){updateFacTotaal(order);renderPrintRows(order);}
+}
+
+function updateFacTotaal(order){
+  const t=order.items.reduce((s,_,i)=>s+(parseFloat(facData[i]?.prijs)||0)*(parseFloat(facData[i]?.qty)||0),0);
+  document.getElementById("fac-totaal").textContent=fmt(t);
+  document.getElementById("fac-print-totaal").textContent=fmt(t);
+}
+
+function renderPrintRows(order){
+  document.getElementById("fac-print-rows").innerHTML=order.items.map((item,i)=>{
+    const p=parseFloat(facData[i]?.prijs||item.prijs),q=parseFloat(facData[i]?.qty||item.qty);
+    return `<tr><td>${esc(item.omschrijving)}</td><td>${isNaN(q)?item.qty:q}</td><td>${fmt(isNaN(p)?item.prijs:p)}</td><td>${fmt(isNaN(p*q)?0:p*q)}</td></tr>`;
+  }).join("");
+}
+
+function handleUpload(input){
+  const file=input.files[0];if(!file)return;
+  document.getElementById("upload-face").textContent="⏳ Bezig…";
+  setStatus("busy","⏳ Bezig met verwerken…");
+  const reader=new FileReader();
+  reader.onload=async function(e){
+    try{
+      const name=file.name.toLowerCase();
+      let prods;
+      if(name.endsWith(".docx")||name.endsWith(".doc"))prods=await parseDocx(e.target.result);
+      else if(name.endsWith(".xlsx")||name.endsWith(".xls"))prods=parseXlsx(e.target.result);
+      else throw new Error("Onbekend bestandstype");
+      const label=document.getElementById("week-input").value.trim()||file.name.replace(/\.(docx?|xlsx?)$/i,"");
+      products=prods;weekLabel=label;
+      save("products_current",{products,weekLabel});
+      renderBadge();renderProducts();updateProductsInfo();
+      document.getElementById("upload-face").textContent="📤 Kies Word (.docx) of Excel (.xlsx)";
+      setStatus("ok",`✓ ${prods.length} producten geladen uit "${file.name}"`);
+      showToast(`✓ ${prods.length} producten geladen`);
+    }catch(err){
+      document.getElementById("upload-face").textContent="📤 Kies Word (.docx) of Excel (.xlsx)";
+      setStatus("err","❌ "+(err.message||err));
+    }
+    input.value="";
+  };
+  reader.onerror=()=>{setStatus("err","❌ Kon bestand niet lezen");document.getElementById("upload-face").textContent="📤 Kies Word (.docx) of Excel (.xlsx)";};
+  reader.readAsArrayBuffer(file);
+}
+
+function setStatus(type,msg){const el=document.getElementById("upload-status");el.className="status-msg status-"+type;el.textContent=msg;}
+
+function updateProductsInfo(){
+  const el=document.getElementById("current-products-info");
+  if(!products.length){el.style.display="none";return;}
+  el.style.display="block";
+  document.getElementById("active-label").textContent=weekLabel;
+  document.getElementById("active-count").textContent=products.length+" producten geladen";
+  document.getElementById("active-cats").textContent=CAT_ORDER.map(c=>`${CAT_EMOJI[c]} ${products.filter(p=>p.categorie===c).length}`).join(" · ");
+}
+
+async function parseDocx(buffer){
+  const zip=await JSZip.loadAsync(buffer);
+  const xmlRaw=await zip.file("word/document.xml").async("string");
+
+  // Extract text from a single XML chunk
+  const getText=chunk=>{
+    const m=chunk.match(/<w:t[^>]*>([^<]*)<\/w:t>/g)||[];
+    return m.map(x=>x.replace(/<[^>]+>/g,"")).join("").trim();
+  };
+
+  const bodyMatch=xmlRaw.match(/<w:body>([\s\S]*)<\/w:body>/);
+  if(!bodyMatch)throw new Error("Kan de inhoud van het Word-bestand niet lezen.");
+
+  // Split into paragraph chunks only (each cell = one paragraph in this file)
+  const chunks=bodyMatch[1].split(/(?=<w:p[ >])/);
+
+  const prods=[];
+  let currentCat=null;
+  let buffer5=[];  // collect 5 paragraphs per product row
+  let inTable=false;
+
+  for(const chunk of chunks){
+    if(!chunk.startsWith("<w:p"))continue;
+
+    const styleMatch=chunk.match(/<w:pStyle w:val="([^"]+)"/);
+    const style=styleMatch?styleMatch[1]:"";
+    const text=getText(chunk);
+
+    // Category heading
+    if(["Kop1","Kop2","Heading1","Heading2"].includes(style)){
+      const up=text.toUpperCase().trim();
+      if(CAT_ORDER.includes(up)){
+        currentCat=up;
+        buffer5=[];
+        inTable=false;
+      }
+      continue;
+    }
+
+    if(!currentCat)continue;
+
+    // Header row: Artikel / Omschrijving / Merk / Verpakking / Prijs
+    if(/^artikel$/i.test(text)){
+      inTable=true;
+      buffer5=[];
+      continue;
+    }
+    if(/^(omschrijving|merk|verpakking|prijs)$/i.test(text))continue;
+
+    if(!inTable)continue;
+
+    // Collect cells: artikel, omschrijving, merk, verpakking, prijs (5 per row)
+    buffer5.push(text);
+
+    if(buffer5.length===5){
+      const [artStr,omschrijving,,, prijsStr]=buffer5;
+      const art=parseInt(artStr);
+      const prijs=parseFloat(prijsStr.replace(",","."));
+      if(!isNaN(art)&&omschrijving&&!isNaN(prijs)&&prijs>0){
+        prods.push({artikel:art,omschrijving,prijs,categorie:currentCat});
+      }
+      buffer5=[];
+    }
+  }
+
+  if(!prods.length)throw new Error("Geen producten gevonden. Controleer het bestandsformaat.");
+  return prods;
+}
+
+function parseXlsx(buffer){
+  const wb=XLSX.read(buffer,{type:"array"});
+  const sheet=wb.Sheets["Producten"];
+  if(!sheet)throw new Error("Geen 'Producten' tabblad gevonden.");
+  const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:null});
+  const prods=[];let currentCat=null;
+  for(const row of rows){
+    const col0=String(row[0]??"").trim();
+    if(CAT_ORDER.includes(col0)){currentCat=col0;continue;}
+    if(/^artikel$/i.test(col0)||!currentCat)continue;
+    const art=parseInt(col0);if(isNaN(art))continue;
+    const omschrijving=String(row[1]??"").trim();
+    const prijs=parseFloat(String(row[2]??"").replace(",","."));
+    if(!omschrijving||isNaN(prijs))continue;
+    prods.push({artikel:art,omschrijving,prijs,categorie:currentCat});
+  }
+  if(!prods.length)throw new Error("Geen producten gevonden in het Excel-bestand.");
+  return prods;
+}
+
+function fmt(n){return"€\u00a0"+Number(n).toFixed(2).replace(".",",");}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+let _tt;function showToast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove("show"),2800);}
+
+init();
+</script>
+</body>
+</html>
