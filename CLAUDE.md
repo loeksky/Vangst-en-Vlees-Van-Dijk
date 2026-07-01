@@ -36,11 +36,25 @@ settings = { gesloten: bool, emailAdressen: [] }
 `VIS`, `VLEES`, `BROOD`, `DIVERSEN`, `AGF` — plus `FAV` (client-side favorieten via localStorage)
 
 ## Cruciale werkwijze bij updates
+
+### Optie A — handmatig via Apps Script editor
 1. Bewerk `index.html` en/of `Code.gs` in Apps Script editor
 2. **Ctrl+S** opslaan
 3. **Deploy → Manage deployments** → potloodje ✏️ bij deployment met `03iewb` in URL → **New version** → **Deploy**
 4. URL blijft hetzelfde, klanten hoeven geen nieuwe link
 5. Test in de webapp met **Ctrl+Shift+R** (harde refresh)
+
+### Optie B — via clasp (Google's Apps Script CLI), lokaal op je eigen machine
+Deze repo bevat `.clasp.json`, `.claspignore` en `appsscript.json` als voorbereiding. Claude Code kan hier niet automatisch mee deployen omdat dat een Google-login vereist — dit moet je zelf eenmalig doen:
+
+1. `npm install` (installeert clasp lokaal als devDependency)
+2. `npx clasp login` — eenmalig inloggen met je Google-account in de browser
+3. Vul in `.clasp.json` je echte `scriptId` in (te vinden in Apps Script via **Project-instellingen** ⚙️, of gebruik `npx clasp clone <scriptId>` om het project te linken)
+4. `npx clasp push` — stuurt `index.html`, `Code.gs` en `appsscript.json` naar Apps Script (overschrijft de editor-inhoud, dus commit eerst je Git-wijzigingen)
+5. `npx clasp deployments` — zoek de deployment waarvan de webapp-URL eindigt op `03iewb` en noteer het `Deployment ID`
+6. `npx clasp deploy -i <Deployment ID> -d "beschrijving"` — update die specifieke deployment zonder de klant-URL te veranderen
+
+Let op: `clasp push` overschrijft alles in de Apps Script editor met de lokale bestanden. Zorg dat `index.html`/`Code.gs` in Git altijd de bron van waarheid zijn voordat je pusht.
 
 ## Bekende valkuilen
 

@@ -1,0 +1,14 @@
+{
+  "name": "vangst-en-vlees-van-dijk",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "login": "clasp login",
+    "push": "clasp push",
+    "deployments": "clasp deployments",
+    "deploy": "clasp version \"update\" && clasp deploy -i $npm_config_deploymentid -d \"update via clasp\""
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  }
+}
